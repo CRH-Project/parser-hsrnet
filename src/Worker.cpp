@@ -96,8 +96,7 @@ void Worker::Start()
         std::string ack_rtt, retrans;
         if(pkt.mode == PacketInfo::TransMode::TCP)
         {
-            if(ISUSR(N2H32(pkt.ip.dstip)) && !ISUSR(N2H32(pkt.ip.srcip)))
-                ack_rtt = rtt_caller.insertAck(pkt);
+            ack_rtt = rtt_caller.insertAck(pkt);
             retrans = rtt_caller.insertPacket(pkt);
         }
         
