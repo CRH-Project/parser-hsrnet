@@ -1,0 +1,26 @@
+protocol:
+{
+    UDP:
+    {
+        DNS: port = 53,
+        UDP: // NORMAL UDP
+    },
+
+    TCP:
+    {
+        HTTP: port = 80 or 8080 ,
+        SSL: port = 443 ,
+        // TLSv1.2: , // USE SSL INSTEAD
+        SSH: port = 22,
+        TCP:    // NORMAL TCP
+    },
+
+    /**
+     * Don't care about these packets
+        Other:
+        {
+            ICMP: ,
+            ICMPv6:
+        }
+     */
+};
