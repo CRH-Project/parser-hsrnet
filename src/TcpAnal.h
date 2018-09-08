@@ -110,12 +110,15 @@ struct RttElement
     static constexpr int ACKED = 2;
     CS_pair id;
     uint32_t seq;   //here is network endian
-    int state;
+    uint32_t ack_seq;
+    //int state;
     struct timeval timestamp;
     bool operator<(const RttElement &r) const
     {
         if(this->id == r.id)
+        {
             return this->seq < r.seq;
+        }
         return id < r.id;
     }
     RttElement(const PacketInfo &pkt, bool inverse = false);
@@ -124,7 +127,7 @@ struct RttElement
 class RttCaller
 {
     private:
-        std::set<RttElement> table;
+        std::multiset<RttElement> table;
     public:
         std::string insertPacket(const PacketInfo &pkt);
         std::string insertAck(const PacketInfo &pkt);

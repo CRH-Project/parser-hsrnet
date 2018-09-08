@@ -44,25 +44,38 @@ RttElement::RttElement(const PacketInfo &pkt, bool isAck)
     {
         this->id = getPairFromPkt(pkt);
         this->seq = pkt.trans.tcp.seq;
+        this->ack_seq = pkt.trans.tcp.ackseq;
     }
     else
     { 
         this->id = getInversedPairFromPkt(pkt);
         this->seq = pkt.trans.tcp.ackseq;
+        this->ack_seq = pkt.trans.tcp.seq;
     }
 
-    this->state = NORMAL;
+    //this->state = NORMAL;
     this->timestamp = pkt.time;
 }
 
 std::string RttCaller::insertPacket(const PacketInfo &pkt)
 {
     RttElement ele(pkt, false);
+    auto range = table.equal_range(ele);
+    for(auto it = range.first; it != range.second; ++it)
+    {
+        if(it->ack_seq == ele.ack_seq)
+        {
+            table.erase(it);
+            return "This is a retransmission";
+        }
+    }
+/*
     if(table.find(ele) != table.end())
     {
         table.erase(ele);
         return "This is a retransmission";
     }
+    */
     table.insert(ele);
     return "";
 }
@@ -72,7 +85,17 @@ std::string RttCaller::insertAck(const PacketInfo &pkt)
     RttElement ele(pkt, true);  //inverse
     if(!pkt.trans.tcp.ack)      // not ack return nothing
         return "";
-    auto res = table.find(ele);
+    
+    decltype(table.find(ele)) res = table.end();
+    auto range = table.equal_range(ele);
+    for(auto it = range.first; it != range.second; ++it)
+    {
+        if(pkt.trans.tcp.seq - pkt.payload == it->ack_seq)
+        {
+            res = it;
+            break;
+        }
+    }
     if(res != table.end())
     {
         auto tsend = res->timestamp;
