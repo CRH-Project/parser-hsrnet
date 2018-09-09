@@ -127,7 +127,8 @@ struct RttElement
 class RttCaller
 {
     private:
-        std::multiset<RttElement> table;
+        //std::multiset<RttElement> table;
+        std::set<RttElement> table;
     public:
         std::string insertPacket(const PacketInfo &pkt);
         std::string insertAck(const PacketInfo &pkt);
