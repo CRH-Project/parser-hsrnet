@@ -111,17 +111,35 @@ struct RttElement
     CS_pair id;
     uint32_t seq;   //here is network endian
     uint32_t ack_seq;
+    uint32_t tsv;
     //int state;
     struct timeval timestamp;
     bool operator<(const RttElement &r) const
     {
         if(this->id == r.id)
         {
+            if(this->seq == r.seq)
+                return this->tsv < r.tsv;
             return this->seq < r.seq;
         }
         return id < r.id;
     }
     RttElement(const PacketInfo &pkt, bool inverse = false);
+};
+
+struct RttElementTS
+{
+    CS_pair id;
+    struct timeval timestamp;
+    int tsval;
+    int tsecr;
+    bool operator<(const RttElementTS &r) const
+    {
+        if(this->tsval == r.tsval)
+            return this->tsecr < r.tsecr;
+        return this->tsval < r.tsval;
+    }
+    RttElementTS(const PacketInfo &pkt, bool inverse = false);
 };
 
 class RttCaller
@@ -136,11 +154,86 @@ class RttCaller
             insertDual(const PacketInfo &pkt);
 };
 
+class RttCallerTS
+{
+    private:
+        std::set<RttElementTS> table;
+    public:
+        std::string insertPacket(const PacketInfo &pkt);
+        std::string insertAck(const PacketInfo &pkt);
+};
 
+
+/* HELPER CLASS */
+struct TCPOption
+{
+    enum Type 
+    {
+        END_OF_LIST = 0,
+        NO_OPERATION = 1,
+        MAX_SEG_SIZE = 2,
+        SACK = 5,
+        TIMESTAMP = 8
+    };
+
+    unsigned char type;
+    unsigned char len;
+    unsigned char data[];
+};
+
+#define TCPOPT_EOL 0
+#define TCPOPT_NOP 1
+
+class TCPOptionWalker{
+    protected:
+        char* current;
+        char* ceiling;
+    public:
+        static const int TCP_OPTION_OFFSET = 20;
+
+        void init(const uint32_t *tcpopt)
+        {
+            current = (char*)tcpopt;
+            ceiling = (char*)tcpopt + 40;
+        }
+
+        TCPOptionWalker(const uint32_t *tcpopt)
+        {
+            init(tcpopt);
+        }
+
+        TCPOptionWalker() {}
+
+        inline TCPOption* next()
+        {
+            if (current == 0)
+            {
+                throw std::runtime_error("invalid TCP option");
+            }
+            else if(current >= ceiling)
+            {
+                return nullptr;
+            }
+            // According to RFC793, EOL and NOP are the only options without 
+            // `length` field.
+            else if (*current == TCPOPT_EOL || *current == TCPOPT_NOP)
+            {
+                current++;
+            }
+            else
+            {
+                current += *(char*)(current + 1);
+            }
+
+            return (TCPOption*)(current >= ceiling ? 0 : current);
+        }
+};
 
 /* FUNCTION HELPERS */
 
 CS_pair getPairFromPkt(const PacketInfo &pkt);
 CS_pair getInversedPairFromPkt(const PacketInfo &pkt);
 bool operator<(const CS_pair &l, const CS_pair &r);
+int getTSval(TCPOption *popt);
+int getTSecr(TCPOption *popt);
 #endif

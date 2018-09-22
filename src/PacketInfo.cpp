@@ -8,6 +8,7 @@ static int getEthernetType(){return _eth_type;}
 PacketInfo::PacketInfo(const u_char *pkt, const struct timeval &v)
     :time(v) 
 {
+    memset(this->options, 0, sizeof(this->options));
     auto eth_conf = getEthernetType();
     if(eth_conf == ETH_TCPDUMP)
     {

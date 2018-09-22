@@ -39,9 +39,9 @@ std::vector<std::string> Worker::header
 {
     "number", "time", "srcip", "dstip", "protocol", 
     "srcport", "dstport", "ack-seq", "seq",
-    "is_syn", "is_ack", "is_fin", "is_rst", "mptcp_opt",
+//    "is_syn", "is_ack", "is_fin", "is_rst", "mptcp_opt",
     "window_size", "header_len", "payload_len",
-    "ack_rtt", "retransmission"//,"lost_segment"
+    "ack_rtt", "retransmission", "TSval", "TSecr"//,"lost_segment"
     //"fast_retransmission", "spurious_retransmission", "BIF"
 };
 
@@ -94,11 +94,22 @@ void Worker::Start()
     {
         auto pkt = std::move(buffer->next());
         std::string ack_rtt, retrans;
+        if(N2H32(pkt.trans.tcp.seq) == 1521371252)
+            fprintf(stderr, "Here!\n");
+        if(N2H32(pkt.trans.tcp.ackseq) == 1521371252)
+            fprintf(stderr, "There!\n");
         if(pkt.mode == PacketInfo::TransMode::TCP)
         {
             ack_rtt = rtt_caller.insertAck(pkt);
             retrans = rtt_caller.insertPacket(pkt);
         }
+
+        uint32_t tsval = 0, tsecr = 0;
+        try{
+            RttElementTS rts(pkt);
+            tsval = N2H32(rts.tsval);
+            tsecr = N2H32(rts.tsecr);
+        }catch(...){}
         
         fout<<++pkt_cnt<<D
             <<pkt.time.tv_sec<<D
@@ -107,16 +118,17 @@ void Worker::Start()
             <<OUT_SRCPORT(pkt)<<D<<OUT_DSTPORT(pkt)<<D
             <<OUT_TCP_FIELD_LEN(pkt, ackseq, 32)<<D
             <<OUT_TCP_FIELD_LEN(pkt, seq, 32)<<D
-            <<OUT_TCP_FIELD_LEN(pkt, syn, 8)<<D
-            <<OUT_TCP_FIELD_LEN(pkt, ack, 8)<<D
-            <<OUT_TCP_FIELD_LEN(pkt, fin, 8)<<D
-            <<OUT_TCP_FIELD_LEN(pkt, rst, 8)<<D
-            <<OUT_MPTCP_OPT(pkt)<<D
+//            <<OUT_TCP_FIELD_LEN(pkt, syn, 8)<<D
+//            <<OUT_TCP_FIELD_LEN(pkt, ack, 8)<<D
+//            <<OUT_TCP_FIELD_LEN(pkt, fin, 8)<<D
+//            <<OUT_TCP_FIELD_LEN(pkt, rst, 8)<<D
+//            <<OUT_MPTCP_OPT(pkt)<<D
             <<OUT_TCP_FIELD_LEN(pkt, wndsize, 16)<<D
             <<OUT_TCP_HDRLEN(pkt)<<D
             <<OUT_PAYLOAD_LEN(pkt)<<D
             <<ack_rtt<<D
             <<retrans<<D
+            <<tsval<<D<<tsecr<<D
             <<std::endl;
     }
 }
