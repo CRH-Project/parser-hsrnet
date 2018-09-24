@@ -41,6 +41,7 @@ std::vector<std::string> Worker::header
     "srcport", "dstport", "ack-seq", "seq",
 //    "is_syn", "is_ack", "is_fin", "is_rst", "mptcp_opt",
     "window_size", "header_len", "payload_len",
+    "ack_which",
     "ack_rtt", "retransmission", "TSval", "TSecr"//,"lost_segment"
     //"fast_retransmission", "spurious_retransmission", "BIF"
 };
@@ -92,12 +93,10 @@ void Worker::Start()
 
     while(buffer->isRunning())
     {
+        ++pkt_cnt;
         auto pkt = std::move(buffer->next());
+        pkt.setNumber(pkt_cnt);
         std::string ack_rtt, retrans;
-        if(N2H32(pkt.trans.tcp.seq) == 1521371252)
-            fprintf(stderr, "Here!\n");
-        if(N2H32(pkt.trans.tcp.ackseq) == 1521371252)
-            fprintf(stderr, "There!\n");
         if(pkt.mode == PacketInfo::TransMode::TCP)
         {
             ack_rtt = rtt_caller.insertAck(pkt);
@@ -111,7 +110,7 @@ void Worker::Start()
             tsecr = N2H32(rts.tsecr);
         }catch(...){}
         
-        fout<<++pkt_cnt<<D
+        fout<<pkt_cnt<<D
             <<pkt.time.tv_sec<<D
             <<OUT_SRCIP(pkt)<<D<<OUT_DSTIP(pkt)<<D
             <<OUT_PROTOCOL(pkt)<<D

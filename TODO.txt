@@ -1,26 +1,11 @@
-protocol:
-{
-    UDP:
-    {
-        DNS: port = 53,
-        UDP: // NORMAL UDP
-    },
+Optimization:
+    add hint into ================== FINISHED!
 
-    TCP:
-    {
-        HTTP: port = 80 or 8080 ,
-        SSL: port = 443 ,
-        // TLSv1.2: , // USE SSL INSTEAD
-        SSH: port = 22,
-        TCP:    // NORMAL TCP
-    },
+Retransmission:
+    add a new data structure to calculate retrans =============== FINISHED!
 
-    /**
-     * Don't care about these packets
-        Other:
-        {
-            ICMP: ,
-            ICMPv6:
-        }
-     */
-};
+Rtt cal:
+    add packet id to do...  =============== FINISHED!
+
+Loss:
+    new stage for the whole pipeline

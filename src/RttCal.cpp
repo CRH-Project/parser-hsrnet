@@ -52,14 +52,20 @@ RttElement::RttElement(const PacketInfo &pkt, bool isAck)
     if(pkt.mode != PacketInfo::TransMode::TCP)
         throw std::runtime_error("expect TCP packet to calculate RTT");
 
-    RttElementTS rts(pkt, isAck);
+    //RttElementTS rts(pkt, isAck);
+    TCPOptionWalker wk(pkt.options);
+    TCPOption *opt = wk.next();
+    while(opt && opt->type != TCPOption::TIMESTAMP)
+        opt = wk.next();
+    if(opt == nullptr)
+        throw std::runtime_error("Packet with no timestamp found!");
 
     if(!isAck)
     {
         this->id = getPairFromPkt(pkt);
         this->seq = pkt.trans.tcp.seq;
         this->ack_seq = pkt.trans.tcp.ackseq;
-        this->tsv = rts.tsval;
+        this->tsv = getTSval(opt);
         
     }
     else
@@ -67,11 +73,12 @@ RttElement::RttElement(const PacketInfo &pkt, bool isAck)
         this->id = getInversedPairFromPkt(pkt);
         this->seq = pkt.trans.tcp.ackseq;
         this->ack_seq = pkt.trans.tcp.seq;
-        this->tsv = rts.tsval;
+        this->tsv = getTSecr(opt);
     }
 
     //this->state = NORMAL;
     this->timestamp = pkt.time;
+    this->setNumber(pkt.pkt_number);
 }
 
 RttElementTS::RttElementTS(const PacketInfo &pkt, bool isAck)
@@ -98,29 +105,35 @@ RttElementTS::RttElementTS(const PacketInfo &pkt, bool isAck)
     this->timestamp = pkt.time;
 }
 
-std::string RttCaller::insertPacket(const PacketInfo &pkt)
+std::string RttCaller::insertPacket(const PacketInfo &pkt,
+        const RttElement *hint)
 {
+    const RttElement *ele;
+    std::string ret_status = "";
     try
     {
-        RttElement ele(pkt, false);
-        auto range = table.equal_range(ele);
+        if(hint)
+            ele = hint;
+        else 
+            ele = new RttElement(pkt, false);
+        auto retrans_status = this->rtable.insert(*ele);
+        if(!retrans_status.second)
+            ret_status += "Retransmission found with " 
+                + std::to_string(retrans_status.first->number);
+        auto range = table.equal_range(*ele);
         for(auto it = range.first; it != range.second; ++it)
         {
-            if(it->ack_seq == ele.ack_seq)
+            if(it->ack_seq == ele->ack_seq)
             {
-                table.erase(it);
-                return "This is a retransmission ";//having same tsval";
+                //table.erase(it);
+                if(!hint) delete ele;
+                return "Duplicate (same TSVAL) packet with " +
+                    std::to_string(it->number);
             }
         }
-        /*
-           if(table.find(ele) != table.end())
-           {
-           table.erase(ele);
-           return "This is a retransmission";
-           }
-           */
-        table.insert(ele);
-        return "";
+        table.insert(*ele);
+        if(!hint) delete ele;
+        return ret_status;
     }catch(std::runtime_error &e)
     {
         //fprintf(stderr,"%s\n",e.what());
@@ -128,15 +141,20 @@ std::string RttCaller::insertPacket(const PacketInfo &pkt)
     }
 }
 
-std::string RttCaller::insertAck(const PacketInfo &pkt)
+std::string RttCaller::insertAck(const PacketInfo &pkt, 
+        const RttElement *hint)
 {
+    const RttElement * ele;
     try{
-        RttElement ele(pkt, true);  //inverse
+        if(hint)
+            ele = hint;
+        else
+            ele = new RttElement(pkt, true);  //inverse
         if(!pkt.trans.tcp.ack)      // not ack return nothing
             return "";
 
-        decltype(table.find(ele)) res = table.end();
-        auto range = table.equal_range(ele);
+        decltype(table.find(*ele)) res = table.end();
+        auto range = table.equal_range(*ele);
         for(auto it = range.first; it != range.second; ++it)
         {
             if(pkt.trans.tcp.seq - pkt.payload == it->ack_seq)
@@ -148,14 +166,15 @@ std::string RttCaller::insertAck(const PacketInfo &pkt)
         if(res != table.end())
         {
             auto tsend = res->timestamp;
-            auto trecv = ele.timestamp;
+            auto trecv = ele->timestamp;
             auto rtt = trecv - tsend;
-            double res = rtt.tv_sec + rtt.tv_usec / 1000000.0;
-            table.erase(ele);
-            return std::to_string(res);
+            double re = rtt.tv_sec + rtt.tv_usec / 1000000.0;
+            table.erase(*ele);
+            if(!hint) delete ele;
+            return std::to_string(res->number)+","+std::to_string(re);
         }
-
-        return "";
+        if(!hint) delete ele;
+        return ",";
     }catch(std::runtime_error &e)
     {
         //fprintf(stderr,"%s\n",e.what());

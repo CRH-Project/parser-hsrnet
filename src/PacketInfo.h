@@ -21,6 +21,7 @@ class PacketInfo
         bool _isUdp(){return ip.protocol == 17;}
 
     public:
+        size_t pkt_number;
         struct timeval time;
         size_t payload;
         Ethernet_t eth;
@@ -33,6 +34,8 @@ class PacketInfo
         PacketInfo(const u_char *pkt, const struct timeval &v);
         PacketInfo(PacketInfo &&) = default;
         PacketInfo(const PacketInfo &) = default;
+
+        inline void setNumber(size_t num){this->pkt_number = num;}
         //PacketInfo(Ethernet_t *, Ipv4_t *, Transport_t *);
 
 };

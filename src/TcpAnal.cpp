@@ -1,25 +1,43 @@
 #include "TcpAnal.h"
 
-int Pipe::insertPacket(const PktRange &pr)
+/* =========== PktRange ============*/
+bool PktRange::operator<(const PktRange & p) const
 {
-    if(acked.count(pr))
-        return RETRANS;
-
-    auto res_i = inflight.insert(pr),
-         res_w = window.insert(pr);
-    if(res_w.second == false)       //already send
-        return RETRANS;
-    
-    auto & iter_w = res_w.first;
-    --iter_w;
-    if(iter_w->end < pr.start)      //have a gap, lost seg
-        return LOST_SEG;
-
-    return NORMAL;
+    if(start == p.start) return end<p.end;
+    return start<p.start;
 }
 
 
-int Pipe::insertAck(const PktRange &pr)
+/*=========== Addr_pair ============*/
+bool Addr_pair::operator<(const Addr_pair &ap) const
 {
-    
+    if(ip == ap.ip) return port < ap.port;
+    return ip<ap.ip;
 }
+bool Addr_pair::operator==(const Addr_pair &ap) const
+{
+    return ip == ap.ip && port == ap.port;
+}
+
+
+/*========== RttElement =============*/
+bool RttElement::operator<(const RttElement & r) const
+{
+    if(this->id == r.id)
+    {
+        if(this->seq == r.seq)
+            return this->tsv < r.tsv;
+        return this->seq < r.seq;
+    }
+    return id < r.id;
+}
+
+/*========== RttElementTS =============*/
+bool RttElementTS::operator<(const RttElementTS &r) const
+{
+    if(this->tsval == r.tsval)
+        return this->tsecr < r.tsecr;
+    return this->tsval < r.tsval;
+}
+
+/*========== TcpOptionWalker =========*/
