@@ -93,9 +93,11 @@ class RttCaller
         std::set<RttElement, RetransCMP> rtable;
     public:
         std::string insertPacket(const PacketInfo &pkt, const RttElement *hint = nullptr);
-        std::string insertAck(const PacketInfo &pkt, const RttElement *hint = nullptr);
+        std::pair<size_t, double> insertAck(const PacketInfo &pkt, const RttElement *hint = nullptr);
+        [[deprecated]]
         std::pair<std::string, std::string>
             insertDual(const PacketInfo &pkt);
+        void removePacket(const PacketInfo &pkt, const RttElement *hint = nullptr);
 
 };
 

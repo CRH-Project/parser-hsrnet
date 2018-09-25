@@ -36,6 +36,10 @@ class PacketInfo
         PacketInfo(const PacketInfo &) = default;
 
         inline void setNumber(size_t num){this->pkt_number = num;}
+        inline bool operator<(const PacketInfo &r) const
+        {
+            return pkt_number < r.pkt_number;
+        }
         //PacketInfo(Ethernet_t *, Ipv4_t *, Transport_t *);
 
 };

@@ -42,7 +42,7 @@ std::vector<std::string> Worker::header
 //    "is_syn", "is_ack", "is_fin", "is_rst", "mptcp_opt",
     "window_size", "header_len", "payload_len",
     "ack_which",
-    "ack_rtt", "retransmission", "TSval", "TSecr"//,"lost_segment"
+    "ack_rtt", "retransmission"//, "TSval", "TSecr"//,"lost_segment"
     //"fast_retransmission", "spurious_retransmission", "BIF"
 };
 
@@ -94,22 +94,50 @@ void Worker::Start()
     while(buffer->isRunning())
     {
         ++pkt_cnt;
-        auto pkt = std::move(buffer->next());
-        pkt.setNumber(pkt_cnt);
-        std::string ack_rtt, retrans;
-        if(pkt.mode == PacketInfo::TransMode::TCP)
+        auto newpkt = std::move(buffer->next());
+        newpkt.setNumber(pkt_cnt);
+        buffered_pkts.emplace(newpkt);
+
+        std::string retrans;
+        std::pair<size_t, double> ack_rtt;
+        if(newpkt.mode == PacketInfo::TransMode::TCP)
         {
-            ack_rtt = rtt_caller.insertAck(pkt);
-            retrans = rtt_caller.insertPacket(pkt);
+            ack_rtt = rtt_caller.insertAck(newpkt);
+            retrans = rtt_caller.insertPacket(newpkt);
         }
 
-        uint32_t tsval = 0, tsecr = 0;
-        try{
-            RttElementTS rts(pkt);
-            tsval = N2H32(rts.tsval);
-            tsecr = N2H32(rts.tsecr);
-        }catch(...){}
+        if(ack_rtt.first != 0ull)
+        {
+            rtt_buf[ack_rtt.first].ack_which = newpkt.pkt_number;
+            rtt_buf[ack_rtt.first].rtt = ack_rtt.second;
+        }
+        rtt_buf[newpkt.pkt_number].retrans = retrans;
+
+        if(buffered_pkts.size() < Worker::BUFFERED_SIZE)
+            continue;
+
+        auto pkt {std::move(*(buffered_pkts.begin()))};
         
+        fout<<pkt.pkt_number<<D
+            <<pkt.time.tv_sec<<D
+            <<OUT_SRCIP(pkt)<<D<<OUT_DSTIP(pkt)<<D
+            <<OUT_PROTOCOL(pkt)<<D
+            <<OUT_SRCPORT(pkt)<<D<<OUT_DSTPORT(pkt)<<D
+            <<OUT_TCP_FIELD_LEN(pkt, ackseq, 32)<<D
+            <<OUT_TCP_FIELD_LEN(pkt, seq, 32)<<D
+            <<OUT_TCP_FIELD_LEN(pkt, wndsize, 16)<<D
+            <<OUT_TCP_HDRLEN(pkt)<<D
+            <<OUT_PAYLOAD_LEN(pkt)<<D
+            <<rtt_buf[pkt.pkt_number]<<D
+            <<std::endl;
+
+        buffered_pkts.erase(buffered_pkts.begin());
+        rtt_buf.erase(rtt_buf.find(pkt.pkt_number));
+        rtt_caller.removePacket(pkt);
+    }
+
+    for(auto & pkt : buffered_pkts)
+    {
         fout<<pkt_cnt<<D
             <<pkt.time.tv_sec<<D
             <<OUT_SRCIP(pkt)<<D<<OUT_DSTIP(pkt)<<D
@@ -117,17 +145,12 @@ void Worker::Start()
             <<OUT_SRCPORT(pkt)<<D<<OUT_DSTPORT(pkt)<<D
             <<OUT_TCP_FIELD_LEN(pkt, ackseq, 32)<<D
             <<OUT_TCP_FIELD_LEN(pkt, seq, 32)<<D
-//            <<OUT_TCP_FIELD_LEN(pkt, syn, 8)<<D
-//            <<OUT_TCP_FIELD_LEN(pkt, ack, 8)<<D
-//            <<OUT_TCP_FIELD_LEN(pkt, fin, 8)<<D
-//            <<OUT_TCP_FIELD_LEN(pkt, rst, 8)<<D
-//            <<OUT_MPTCP_OPT(pkt)<<D
             <<OUT_TCP_FIELD_LEN(pkt, wndsize, 16)<<D
             <<OUT_TCP_HDRLEN(pkt)<<D
             <<OUT_PAYLOAD_LEN(pkt)<<D
-            <<ack_rtt<<D
-            <<retrans<<D
-            <<tsval<<D<<tsecr<<D
+            <<rtt_buf[pkt.pkt_number]<<D
             <<std::endl;
     }
 }
+
+

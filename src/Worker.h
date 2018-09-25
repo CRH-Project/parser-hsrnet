@@ -7,6 +7,8 @@
 #include <fstream>
 #include <memory>
 #include <vector>
+#include <set>
+#include <map>
 
 #include "Buffer.hpp"
 #include "PacketInfo.h"
@@ -38,6 +40,8 @@ class Worker
                 fout<<str<<delimeter;
             fout<<std::endl;
         }
+
+        static constexpr size_t BUFFERED_SIZE = 16384;
     public:
         
         Worker();
@@ -68,8 +72,30 @@ class Worker
         
     private:
         static std::vector<std::string> header;
-
         constexpr static char delimeter {','};
+
+    private:
+        struct ExtraInfo
+        {
+            size_t ack_which;
+            double rtt;
+            std::string retrans;
+        };
+        friend std::ostream & operator<<(std::ostream & o, const ExtraInfo &e)
+        {
+            if(e.ack_which!=0)
+               o<<e.ack_which;
+            o<<delimeter;
+            if(e.rtt!=0)
+                o<<e.rtt;
+            o<<delimeter
+                <<e.retrans;
+            return o;
+        }
+
+    private:
+        std::set<PacketInfo> buffered_pkts;
+        std::map<size_t, ExtraInfo> rtt_buf;
 
 };
 
