@@ -119,7 +119,7 @@ void Worker::Start()
         auto pkt {std::move(*(buffered_pkts.begin()))};
         
         fout<<pkt.pkt_number<<D
-            <<pkt.time.tv_sec<<D
+            <<pkt.time.tv_sec<<"."<<pkt.time.tv_usec<<D
             <<OUT_SRCIP(pkt)<<D<<OUT_DSTIP(pkt)<<D
             <<OUT_PROTOCOL(pkt)<<D
             <<OUT_SRCPORT(pkt)<<D<<OUT_DSTPORT(pkt)<<D
@@ -139,7 +139,7 @@ void Worker::Start()
     for(auto & pkt : buffered_pkts)
     {
         fout<<pkt.pkt_number<<D
-            <<pkt.time.tv_sec<<D
+            <<pkt.time.tv_sec<<"."<<pkt.time.tv_usec<<D
             <<OUT_SRCIP(pkt)<<D<<OUT_DSTIP(pkt)<<D
             <<OUT_PROTOCOL(pkt)<<D
             <<OUT_SRCPORT(pkt)<<D<<OUT_DSTPORT(pkt)<<D
