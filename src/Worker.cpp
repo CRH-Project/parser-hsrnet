@@ -133,12 +133,12 @@ void Worker::Start()
 
         buffered_pkts.erase(buffered_pkts.begin());
         rtt_buf.erase(rtt_buf.find(pkt.pkt_number));
-        rtt_caller.removePacket(pkt);
+        //rtt_caller.removePacket(pkt);
     }
 
     for(auto & pkt : buffered_pkts)
     {
-        fout<<pkt_cnt<<D
+        fout<<pkt.pkt_number<<D
             <<pkt.time.tv_sec<<D
             <<OUT_SRCIP(pkt)<<D<<OUT_DSTIP(pkt)<<D
             <<OUT_PROTOCOL(pkt)<<D
@@ -152,5 +152,3 @@ void Worker::Start()
             <<std::endl;
     }
 }
-
-

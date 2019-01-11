@@ -6,6 +6,7 @@
 #include "TcpAnal.h"
 #include "utils.h"
 
+
 bool operator<(const CS_pair &l, const CS_pair &r)
 {    
     if(l.first == r.first)
@@ -57,23 +58,30 @@ RttElement::RttElement(const PacketInfo &pkt, bool isAck)
     TCPOption *opt = wk.next();
     while(opt && opt->type != TCPOption::TIMESTAMP)
         opt = wk.next();
+
+#ifdef USE_TS
     if(opt == nullptr)
         throw std::runtime_error("Packet with no timestamp found!");
+#endif
 
     if(!isAck)
     {
         this->id = getPairFromPkt(pkt);
-        this->seq = pkt.trans.tcp.seq;
-        this->ack_seq = pkt.trans.tcp.ackseq;
+        this->seq = ntohl(pkt.trans.tcp.seq) + pkt.payload;
+        this->ack_seq = ntohl(pkt.trans.tcp.ackseq);
+#ifdef USE_TS
         this->tsv = getTSval(opt);
+#endif
         
     }
     else
     { 
         this->id = getInversedPairFromPkt(pkt);
-        this->seq = pkt.trans.tcp.ackseq;
-        this->ack_seq = pkt.trans.tcp.seq;
+        this->seq = ntohl(pkt.trans.tcp.ackseq);
+        this->ack_seq = ntohl(pkt.trans.tcp.seq);
+#ifdef USE_TS
         this->tsv = getTSecr(opt);
+#endif
     }
 
     //this->state = NORMAL;
@@ -158,11 +166,11 @@ std::pair<size_t, double> RttCaller::insertAck(const PacketInfo &pkt,
         auto range = table.equal_range(*ele);
         for(auto it = range.first; it != range.second; ++it)
         {
-            if(pkt.trans.tcp.seq - pkt.payload == it->ack_seq)
-            {
+            //if(pkt.trans.tcp.seq - pkt.payload == it->ack_seq)
+            //{
                 res = it;
                 break;
-            }
+            //}
         }
         if(res != table.end())
         {

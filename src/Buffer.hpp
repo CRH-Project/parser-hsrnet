@@ -29,7 +29,7 @@ class Buffer
 
         Buffer(size_t stop_bnd) : stop_bound(stop_bnd), data(stop_bnd), stopped(false)
         {
-            start_bound = stop_bound/2;
+            start_bound = 0;//stop_bound/2;
         }
     public:
         T next();
@@ -44,7 +44,7 @@ class Buffer
         size_t getStartBound(){return this->start_bound;} 
 
         void stop(){this->stopped = true; read_cond.notify_one();}
-        bool isRunning(){return !stopped;}
+        bool isRunning(){return !stopped || this->data.size() != 0;}
     private:
 
         size_t stop_bound = DEFAULT_STOP_BOUND;
@@ -64,10 +64,11 @@ class Buffer
 template<typename T>
 T Buffer<T>::next()
 {
-    if(stopped)
+    if(!isRunning())
         throw std::runtime_error("Try to read from a stopped buffer!");
     std::unique_lock<std::mutex> read_lock(this->read_mutex);
-    read_cond.wait(read_lock,[this](){ return this->data.size() > 1;});
+    if(!stopped)
+        read_cond.wait(read_lock,[this](){ return this->data.size() > 1;});
     T ret{std::move(this->data.front())};
     this->data.pop_front();
     if(this->data.size()<start_bound) 
