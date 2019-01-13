@@ -5,7 +5,7 @@
 #include <set>
 #include "PacketInfo.h"
 
-//#define USE_TS
+#define USE_TS
 
 /* defined but not actually used */
 struct PktRange;

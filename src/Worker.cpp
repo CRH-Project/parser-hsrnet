@@ -42,7 +42,7 @@ std::vector<std::string> Worker::header
 //    "is_syn", "is_ack", "is_fin", "is_rst", "mptcp_opt",
     "window_size", "header_len", "payload_len",
     "ack_which",
-    "ack_rtt", "retransmission"//, "TSval", "TSecr"//,"lost_segment"
+    "ack_rtt", "retransmission", "TSval", "TSecr"//,"lost_segment"
     //"fast_retransmission", "spurious_retransmission", "BIF"
 };
 
@@ -84,6 +84,17 @@ inline static std::string getMPTCP(const PacketInfo &pkt)
     else return "0";
 }
 
+inline static int gettsval(TCPOption *popt)
+{
+    uint32_t *ptsval = (uint32_t *)(popt->data);
+    return *ptsval;
+}
+
+inline static int gettsecr(TCPOption *popt)
+{
+    uint32_t *ptsecr = (uint32_t *)((char *)(popt->data) + 4);
+    return *ptsecr;
+}
 
 void Worker::Start()
 {
@@ -118,6 +129,19 @@ void Worker::Start()
 
         auto pkt {std::move(*(buffered_pkts.begin()))};
         
+        std::string tsval{}, tsecr{};
+#ifdef USE_TS
+        TCPOptionWalker wk(pkt.options);
+        TCPOption *opt = wk.next();
+        while(opt && opt->type != TCPOption::TIMESTAMP)
+            opt = wk.next();
+        if(opt!=nullptr)
+        {
+            tsval = std::to_string(gettsval(opt));
+            tsecr = std::to_string(gettsecr(opt));
+        }
+#endif
+
         fout<<pkt.pkt_number<<D
             <<pkt.time.tv_sec<<"."<<pkt.time.tv_usec<<D
             <<OUT_SRCIP(pkt)<<D<<OUT_DSTIP(pkt)<<D
@@ -129,6 +153,7 @@ void Worker::Start()
             <<OUT_TCP_HDRLEN(pkt)<<D
             <<OUT_PAYLOAD_LEN(pkt)<<D
             <<rtt_buf[pkt.pkt_number]<<D
+            <<tsval<<D<<tsecr<<D
             <<std::endl;
 
         buffered_pkts.erase(buffered_pkts.begin());

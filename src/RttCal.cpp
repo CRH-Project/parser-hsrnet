@@ -139,7 +139,7 @@ std::string RttCaller::insertPacket(const PacketInfo &pkt,
                     std::to_string(it->number);
             }
         }
-        if(pkt.payload > 0) // ignore packets without payload
+        if(pkt.payload > 1) // ignore packets without payload
             table.insert(*ele);
         if(!hint) delete ele;
         return ret_status;
